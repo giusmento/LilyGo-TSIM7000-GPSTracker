@@ -18,7 +18,8 @@ bool turnOnSIM7000(DFRobot_SIM7000 *sim7000)
     sim7000->turnON(PWR_PIN);
 
     Serial.println("Set baud rate......");
-    while (1)
+    int i = 0;
+    while (i<10)
     {
         if (sim7000->setBaudRate(19200))
         { // Set SIM7000 baud rate from 115200 to 19200 reduce the baud rate to avoid distortion
@@ -30,6 +31,7 @@ bool turnOnSIM7000(DFRobot_SIM7000 *sim7000)
             Serial.println("Failed to set baud rate");
             delay(1000);
         }
+        i++;
     }
     return true;
 };
@@ -72,20 +74,30 @@ bool sync_position(DFRobot_SIM7000 *sim7000)
     return false;
 };
 
-SmsType getLastSms(DFRobot_SIM7000 *sim7000)
+bool getLastSms(DFRobot_SIM7000 *sim7000, SmsType *receivedSms)
 {
     char response[500];
-    sim7000->getSMSRaw(response);
+    sim7000->getLastSMSRaw(response);
     Serial.println(response);
     char *chars_array = strtok(response, "\n");
     char payload[255];
+    char parse[100];
     int line = 0;
-    SmsType lastReceivedSms;
     while (chars_array != NULL)
     {
-        Serial.print("ROW:");
-        Serial.println(chars_array);
-        if (line == 1)
+        // Serial.print("ROW:");
+        // Serial.println(chars_array);
+        strncpy(parse, chars_array, sizeof(parse));
+        parse[strlen(parse) - 1] = '\0';
+        // Serial.print("Comp:");
+        // Serial.print(parse);
+        // Serial.println(strcmp(parse, "OK"));
+        if (strcmp(parse, "OK") == 0)
+        {
+            Serial.println("No more SMS: Exiting");
+            return false;
+        }
+        else if (line == 1)
         {
             strncpy(payload, chars_array, sizeof(payload));
             Serial.print("Header:");
@@ -93,9 +105,9 @@ SmsType getLastSms(DFRobot_SIM7000 *sim7000)
         }
         else if (line == 2)
         {
-            strncpy(lastReceivedSms.text, chars_array, sizeof(lastReceivedSms.text));
+            strncpy(receivedSms->text, chars_array, sizeof(receivedSms->text));
             Serial.print("Message:");
-            Serial.println(lastReceivedSms.text);
+            Serial.println(receivedSms->text);
         }
         else if (line == 3)
             break;
@@ -107,24 +119,24 @@ SmsType getLastSms(DFRobot_SIM7000 *sim7000)
     // INDEX remove first 7 chars
     memmove(chars_array, chars_array + 7, strlen(chars_array) - 7);
     chars_array[strlen(chars_array) - 7] = '\0';
-    strncpy(lastReceivedSms.index, chars_array, sizeof(lastReceivedSms.index));
+    strncpy(receivedSms->index, chars_array, sizeof(receivedSms->index));
     chars_array = strtok(NULL, ",");
     // STAT remove first and last char
     memmove(chars_array, chars_array + 1, strlen(chars_array) - 2);
     chars_array[strlen(chars_array) - 2] = '\0';
-    strncpy(lastReceivedSms.stat, chars_array, sizeof(lastReceivedSms.stat));
+    strncpy(receivedSms->stat, chars_array, sizeof(receivedSms->stat));
     chars_array = strtok(NULL, ",");
     // SENDER remove first and last char
     memmove(chars_array, chars_array + 1, strlen(chars_array) - 2);
     chars_array[strlen(chars_array) - 2] = '\0';
-    strncpy(lastReceivedSms.sender, chars_array, sizeof(lastReceivedSms.sender));
+    strncpy(receivedSms->sender, chars_array, sizeof(receivedSms->sender));
     chars_array = strtok(NULL, ",");
     // DATE remove first and last char
     memmove(chars_array, chars_array + 1, strlen(chars_array));
-    strncpy(lastReceivedSms.date, chars_array, sizeof(lastReceivedSms.date));
+    strncpy(receivedSms->date, chars_array, sizeof(receivedSms->date));
     chars_array = strtok(NULL, ",");
     // TIME remove last char
     chars_array[strlen(chars_array) - 2] = '\0';
-    strncpy(lastReceivedSms.time, chars_array, sizeof(lastReceivedSms.time));
-    return lastReceivedSms;
+    strncpy(receivedSms->time, chars_array, sizeof(receivedSms->time));
+    return true;
 };

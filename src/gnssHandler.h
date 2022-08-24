@@ -3,4 +3,4 @@
 
 bool turnOnSIM7000(DFRobot_SIM7000 *sim7000);
 bool sync_position(DFRobot_SIM7000 *sim7000);
-SmsType getLastSms(DFRobot_SIM7000 *sim7000);
+bool getLastSms(DFRobot_SIM7000 *sim7000, SmsType *receivedSms);
